@@ -47,13 +47,18 @@ npm run dev
 | `POST /api/time/turn` | 推进 turn |
 | `POST /api/belief/update` | 信念更新 |
 | `POST /api/memory/update` | 记忆节点写入 |
-| `POST /api/trust/update` | 信任更新 |
+| `POST /api/scenarios` | 创建场景 |
+| `PUT /api/scenarios/{id}` | 更新场景 |
+| `DELETE /api/scenarios/{id}` | 删除场景 |
+| `POST /api/scenarios/{id}/activate` | 激活场景 |
+| `GET /api/state/version` | 当前 stateVersion |
 
 ## 文件
 
 | 文件 | 说明 |
 |------|------|
-| `game_engine_v13.py` | 唯一引擎（Fact 版本链 + 图 + ATMS + 共识） |
+| `game_engine_v13.py` | 唯一引擎（Phase1–3: per-NPC 信念 / 私有记忆 / stateVersion） |
+| `engine_checkpoint.py` | LLM 失败 rollback 快照 |
 | `srs_api_v13.py` | 统一 FastAPI 后端 |
 | `srs_llm.py` | LLM 对话（读取项目 `.env`） |
 | `unified_belief.py` | UnifiedBelief 数据模型 |

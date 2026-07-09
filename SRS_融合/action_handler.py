@@ -4,6 +4,8 @@ action_handler.py — 玩家动作分析（参照 npc_consensus_v13_updated.anal
 
 将 Talk / Inspect / Question / Accuse / Give Evidence / Continue
 映射为：默认台词 → 命题抽取 → 信念/信任更新 → LLM 提示。
+
+Phase 3: 无场景硬编码，规则层从 known_props + 通用语义推断命题。
 """
 from __future__ import annotations
 
@@ -18,8 +20,8 @@ ACTION_DEFAULT_UTTERANCE = {
     "Talk": "I'd like to talk with you about recent events.",
     "Inspect": "I carefully examine the surroundings and anything notable nearby.",
     "Question": "I have some questions - can you tell me what you know?",
-    "Accuse": "I accuse the knight of being a fraud. The evidence doesn't add up.",
-    "Give Evidence": "I present evidence about the knight's suspicious armor markings.",
+    "Accuse": "I want to raise a serious accusation based on what I've seen.",
+    "Give Evidence": "I present evidence about something suspicious I've noticed.",
     "Continue": "Please continue - tell me more about what you've seen.",
 }
 
@@ -32,11 +34,20 @@ ACTION_NPC_HINT = {
     "Continue": "Continue the conversation thread; elaborate on prior topic.",
 }
 
-# 规则 fallback（npc_consensus _fallback 简化版）
-_KNIGHT_POS = re.compile(r"\b(trust|trustworthy|real|legitimate|hero|brave|honest)\b", re.I)
-_KNIGHT_NEG = re.compile(r"\b(fake|fraud|impostor|deserter|lie|liar|forgery|markings|suspicious)\b", re.I)
+# 通用语义（无场景专有实体）
+_NEG = re.compile(
+    r"\b(fake|fraud|impostor|deserter|lie|liar|forgery|suspicious|wrong|false|guilty|stolen)\b",
+    re.I,
+)
+_POS = re.compile(
+    r"\b(trust|trustworthy|real|legitimate|hero|brave|honest|innocent|true|safe)\b",
+    re.I,
+)
 _CHANGE = re.compile(
-    r"\b(no longer|fake|fraud|impostor|revealed|evidence|accuse|markings|deserter)\b", re.I)
+    r"\b(no longer|fake|fraud|impostor|revealed|evidence|accuse|markings|deserter|contradict)\b",
+    re.I,
+)
+_WORD_TO_CLAIM = re.compile(r"[a-z][a-z0-9_]{2,}")
 
 
 def effective_utterance(action_type: str, player_input: str, npc_name: str) -> str:
@@ -50,11 +61,55 @@ def effective_utterance(action_type: str, player_input: str, npc_name: str) -> s
     return base.replace("you", npc_name) if action_type == "Talk" else base
 
 
-def _rule_analyze(text: str, action_type: str, actor: str) -> dict:
-    """规则 analyze_action fallback。"""
+def _claim_from_text(text: str, known_props: Dict[str, str]) -> Optional[str]:
+    """从文本 token 匹配 known_props 中的 claim_id。"""
+    low = text.lower()
+    for cid in known_props:
+        if cid.replace("_", " ") in low or cid in low:
+            return cid
+    tokens = set(_WORD_TO_CLAIM.findall(low))
+    for cid in known_props:
+        parts = set(cid.split("_"))
+        if parts & tokens:
+            return cid
+    return None
+
+
+def _default_prop_key(text: str, action_type: str, known_props: Dict[str, str]) -> str:
+    matched = _claim_from_text(text, known_props)
+    if matched:
+        return matched
+    if action_type == "Inspect":
+        return "scene_observation"
+    if action_type == "Question":
+        return "player_inquiry"
+    if action_type in ("Accuse", "Give Evidence"):
+        return "player_accusation" if action_type == "Accuse" else "player_evidence"
+    return "player_misc"
+
+
+def _target_facts(prop: str, polarity: float, known_props: Dict[str, str]) -> List[str]:
+    """推断与 prop 可能矛盾的已有命题。"""
+    if not known_props or prop in ("chitchat", "scene_observation", "player_inquiry", "player_misc"):
+        return []
+    if polarity < 0:
+        return [cid for cid in known_props if cid != prop]
+    if polarity > 0:
+        return []
+    return []
+
+
+def _rule_analyze(
+    text: str,
+    action_type: str,
+    actor: str,
+    known_props: Optional[Dict[str, str]] = None,
+) -> dict:
+    """规则 analyze_action fallback（场景无关）。"""
+    known_props = known_props or {}
     low = text.lower()
     chitchat = action_type in ("Talk", "Continue") and not _CHANGE.search(low) and len(text) < 40
-    if chitchat and not _KNIGHT_NEG.search(text) and not _KNIGHT_POS.search(text):
+    if chitchat and not _NEG.search(text) and not _POS.search(text):
         return {
             "proposition_key": "chitchat",
             "content_label": text[:80],
@@ -65,26 +120,28 @@ def _rule_analyze(text: str, action_type: str, actor: str) -> dict:
             "target_facts": [],
         }
 
-    polarity = -1.0 if _KNIGHT_NEG.search(text) else (1.0 if _KNIGHT_POS.search(text) else 0.0)
-    prop = "player_misc"
+    polarity = -1.0 if _NEG.search(text) else (1.0 if _POS.search(text) else 0.0)
+    prop = _default_prop_key(text, action_type, known_props)
     strength = 0.45
     targets: List[str] = []
 
-    if _KNIGHT_NEG.search(text) or action_type in ("Accuse",):
-        prop = "knight_is_fake"
+    if action_type in ("Accuse", "Give Evidence"):
+        strength = 0.88 if action_type == "Accuse" else 0.82
+        if polarity == 0.0 and action_type == "Accuse":
+            polarity = -1.0
+        targets = _target_facts(prop, polarity, known_props)
+    elif _NEG.search(text):
         polarity = -1.0
-        strength = 0.88 if action_type in ("Accuse", "Give Evidence") else 0.65
-        targets = ["knight_is_trustworthy"]
-    elif _KNIGHT_POS.search(text):
-        prop = "knight_is_trustworthy"
+        prop = _claim_from_text(text, known_props) or prop
+        targets = _target_facts(prop, polarity, known_props)
+        strength = 0.65
+    elif _POS.search(text):
         polarity = 1.0
+        prop = _claim_from_text(text, known_props) or prop
         strength = 0.7
-        targets = ["knight_is_fake"]
     elif action_type == "Inspect":
-        prop = "scene_observation"
         strength = 0.55
     elif action_type == "Question":
-        prop = "player_inquiry"
         strength = 0.4
 
     if action_type == "Give Evidence":
@@ -127,7 +184,7 @@ def analyze_player_action(
         except Exception:
             pass
 
-    fb = _rule_analyze(text, action_type, actor)
+    fb = _rule_analyze(text, action_type, actor, known_props)
     fb["action_type"] = action_type
     fb["source"] = "rule"
     return fb

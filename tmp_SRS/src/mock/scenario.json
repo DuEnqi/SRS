@@ -6,7 +6,8 @@
       "location": "Greyford",
       "theme": "Identity Conflict",
       "description": "A mysterious knight arrives in the village of Greyford, claiming to be on a mission from the capital. However, the local blacksmith suspects the knight is a fraud, creating tension and conflict within the community.",
-      "currentDay": 3,
+      "trackedClaims": ["knight_is_trustworthy", "knight_is_fake", "village_is_safe"],
+      "conflictPair": ["knight_is_trustworthy", "knight_is_fake"],
       "totalDays": 7,
       "participants": ["Thomas", "Duran", "Mila", "Gareth", "Sergeant", "Tobias"],
       "timeline": [

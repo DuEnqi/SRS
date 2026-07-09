@@ -22,6 +22,7 @@ const initialState = {
   currentConsensus: 0,
   consensusMetrics: {},
   consensusHistory: [],
+  stateVersion: 0,
   backendConnected: false,
   evaluationData: {
     memoryAccuracy: 87,
@@ -55,8 +56,9 @@ function applyBackendState(set, state, opts = {}) {
       propagationQueue: state.propagationQueue || [],
       currentConsensus: state.currentConsensus ?? 0,
       consensusMetrics: state.consensusMetrics || {},
-      consensusHistory: state.consensusHistory || [],
-      trustNetwork,
+    consensusHistory: state.consensusHistory || [],
+    stateVersion: state.stateVersion ?? 0,
+    trustNetwork,
       backendConnected: true,
     }
     if (state.consensusMetrics && Object.keys(state.consensusMetrics).length) {
@@ -112,9 +114,8 @@ export const useStore = create((set, get) => ({
   setCurrentScenario: (scenario) => set({ currentScenario: scenario }),
   setCurrentPage: (page) => set({ currentPage: page }),
 
-  createScenario: () => {
-    const newScenario = {
-      id: `scenario-${Date.now()}`,
+  createScenario: async () => {
+    const payload = {
       name: 'New Scenario',
       location: 'Unknown Location',
       description: 'A new narrative scenario waiting to be developed.',
@@ -131,11 +132,34 @@ export const useStore = create((set, get) => ({
         trustEffect: {},
       })),
     }
-    set((state) => ({
-      scenarios: [...state.scenarios, newScenario],
-      currentScenario: newScenario,
-    }))
+    try {
+      const res = await api.createScenario(payload)
+      if (res?.state) applyBackendState(set, res.state)
+      else if (res?.scenario) {
+        set((state) => ({
+          scenarios: [...state.scenarios, res.scenario],
+          currentScenario: res.scenario,
+        }))
+      }
+    } catch {
+      const newScenario = { id: `scenario-${Date.now()}`, ...payload }
+      set((state) => ({
+        scenarios: [...state.scenarios, newScenario],
+        currentScenario: newScenario,
+      }))
+    }
     get().addActivity('New scenario created', 'system')
+  },
+
+  activateScenario: async (scenarioId) => {
+    try {
+      const res = await api.activateScenario(scenarioId)
+      if (res?.state) applyBackendState(set, res.state)
+    } catch {
+      const scen = get().scenarios.find((s) => s.id === scenarioId)
+      if (scen) set({ currentScenario: scen })
+    }
+    get().addActivity(`Activated scenario ${scenarioId}`, 'system')
   },
 
   advanceTurn: async () => {
@@ -168,7 +192,7 @@ export const useStore = create((set, get) => ({
   },
 
   playerAction: async (actionType, npcId, text = '') => {
-    const { npcs, dialogueHistory, addActivity } = get()
+    const { npcs, dialogueHistory, addActivity, stateVersion } = get()
     const npc = npcs.find((n) => n.id === npcId)
 
     addActivity(`Player ${actionType} with ${npc?.name || 'unknown'}`, 'player')
@@ -176,6 +200,7 @@ export const useStore = create((set, get) => ({
 
     const context = {
       actionType,
+      stateVersion,
       dialogueHistory: dialogueHistory.slice(-8).map((d) => ({
         speaker: d.speaker,
         text: d.text,

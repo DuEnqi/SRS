@@ -6,6 +6,19 @@ v6  ATMSKernelV2 + Hansson incision
 v7-v9  classify_fine_v9
 v13 GraphMemory 节点/边 + ConsensusEngine
 组友 Fact / NPCKnows / NPCTrusts + SubjectiveLogicEngine
+
+Phase 1 (per-NPC belief model):
+  - npc_beliefs[(npc_id, claim_id)] 替代全局 version_chains
+  - get_belief() NPCKnows gate
+  - get_all_beliefs() 仅返回有 knowledge 的 claim
+  - Consensus propagate/compute 按 NPC 独立写入与统计
+Phase 2:
+  - npc_private_memory 私有记忆
+  - engine_checkpoint LLM failure rollback
+  - Scenario CRUD API (srs_api_v13)
+Phase 3:
+  - stateVersion + idempotency cache
+  - action_handler 无场景硬编码
 """
 from __future__ import annotations
 
@@ -52,6 +65,7 @@ from action_handler import (  # noqa: E402
     action_belief_trust_deltas,
     effective_utterance,
 )
+from engine_checkpoint import checkpoint as _checkpoint, rollback as _rollback  # noqa: E402
 
 _CHANGE_RE = re.compile(
     r"\b(?:no longer|not (?:still |anymore|valid)|changed|switched|moved|relocated|"
@@ -155,36 +169,45 @@ class ConsensusEngine:
                     "reason": f"premise_resistance trust={trust:.2f}",
                 })
                 continue
+            had_knowledge = self.eng._has_knowledge(tnpc, claim)
             current = self.eng.get_belief(tnpc, claim)
             origins = {e.npc_id_from for k, e in self.eng.trust_edges.items()
                        if e.npc_id_to == tnpc and e.weight >= 0.3}
             delta = confidence * trust * 0.5
             if len(origins) <= 1 and source_npc != "world":
                 delta *= 0.3
-            old_conf = current["confidence"]
+            old_conf = current["confidence"] if had_knowledge else 0.0
             new_conf = max(0.0, min(1.0, old_conf + delta))
-            ub = self.eng.beliefs.get(f"{tnpc}_believes_{claim}")
-            if ub and ub.holder == tnpc:
+            if had_knowledge:
                 new_conf = old_conf * 0.7 + new_conf * 0.3
             accepted = abs(new_conf - old_conf) > 0.02
             if accepted:
-                self.eng.supersede_fact(claim, new_evidence, new_conf, holder=tnpc)
+                # Per-NPC write: each target gets its own version chain
+                self.eng.supersede_fact(
+                    claim, new_evidence, new_conf, holder=tnpc,
+                    source_npc=source_npc, direct=False,
+                )
             results["propagations"].append({
                 "target": tnpc, "accepted": accepted,
                 "trust": round(trust, 3), "old_conf": round(old_conf, 3),
                 "new_conf": round(new_conf, 3),
+                "had_knowledge": had_knowledge,
             })
         self.consensus_history.append(results)
         return results
 
     def compute_consensus(self, claim: str) -> dict:
-        confs = [self.eng.get_belief(n, claim)["confidence"] for n in self.eng.npcs]
-        if not confs:
-            return {"consensus": 0.0, "variance": 0.0, "convergence": 0.0}
+        holders = [n for n in self.eng.npcs if self.eng._has_knowledge(n, claim)]
+        if not holders:
+            return {"consensus": 0.0, "variance": 0.0, "convergence": 0.0, "holders": 0}
+        confs = [self.eng.get_belief(n, claim)["confidence"] for n in holders]
         mean = sum(confs) / len(confs)
         var = sum((c - mean) ** 2 for c in confs) / len(confs)
-        return {"consensus": round(mean, 4), "variance": round(var, 4),
-                "convergence": round(max(0, 1 - math.sqrt(var)), 4)}
+        return {
+            "consensus": round(mean, 4), "variance": round(var, 4),
+            "convergence": round(max(0, 1 - math.sqrt(var)), 4),
+            "holders": len(holders),
+        }
 
 
 class GameEngineV13:
@@ -199,7 +222,8 @@ class GameEngineV13:
         self.facts: Dict[str, Fact] = {}
         self.knows_edges: Dict[str, NPCKnows] = {}
         self.trust_edges: Dict[str, NPCTrusts] = {}
-        self.version_chains: Dict[str, List[str]] = defaultdict(list)
+        # Per-NPC version chains: (npc_id, claim_id) -> [vnid, ...]
+        self.npc_beliefs: Dict[Tuple[str, str], List[str]] = defaultdict(list)
         self.beliefs: Dict[str, UnifiedBelief] = {}
         self.graph_nodes: List[dict] = []
         self.graph_edges: List[dict] = []
@@ -216,6 +240,9 @@ class GameEngineV13:
         self.dialogue_history: List[dict] = []
         self.pending_memory_updates: List[dict] = []
         self.propagation_queue: List[dict] = []
+        self.npc_private_memory: Dict[str, List[dict]] = defaultdict(list)
+        self.state_version: int = 0
+        self._idempotency_cache: Dict[str, dict] = {}
 
         self._load_mock_data()
         self._seed_scenario_facts()
@@ -284,6 +311,171 @@ class GameEngineV13:
         s = re.sub(r"[^a-z0-9]+", "_", (statement or "").lower()).strip("_")
         return s[:48] or "unknown_claim"
 
+    # ── Per-NPC belief index (Phase 1) ──
+
+    def _npc_claim_key(self, npc_id: str, claim_id: str) -> Tuple[str, str]:
+        return (npc_id, claim_id)
+
+    def _get_npc_chain(self, npc_id: str, claim_id: str) -> List[str]:
+        return list(self.npc_beliefs.get(self._npc_claim_key(npc_id, claim_id), []))
+
+    def _has_knowledge(self, npc_id: str, claim_id: str) -> bool:
+        """NPCKnows gate: NPC must hold a non-stale KNOWS edge to an active version."""
+        chain = self._get_npc_chain(npc_id, claim_id)
+        if not chain:
+            return False
+        for vnid in reversed(chain):
+            edge = self.knows_edges.get(f"{npc_id}->{vnid}")
+            if not edge or edge.is_stale:
+                continue
+            fact = self.facts.get(vnid)
+            ub = self.beliefs.get(vnid)
+            if fact and ub and fact.is_active and ub.is_active:
+                return True
+        return False
+
+    def _known_claims(self, npc_id: str) -> List[str]:
+        return [
+            claim for (nid, claim) in self.npc_beliefs
+            if nid == npc_id and self._has_knowledge(npc_id, claim)
+        ]
+
+    def _all_known_claim_ids(self) -> List[str]:
+        seen: Set[str] = set()
+        out: List[str] = []
+        for (nid, claim) in self.npc_beliefs:
+            if claim not in seen and self._has_knowledge(nid, claim):
+                seen.add(claim)
+                out.append(claim)
+        return out
+
+    def _mark_knows_stale(self, npc_id: str, vnid: str) -> None:
+        key = f"{npc_id}->{vnid}"
+        if key in self.knows_edges:
+            self.knows_edges[key].is_stale = True
+
+    @property
+    def version_chains(self) -> Dict[str, List[str]]:
+        """Diagnostic merge view (legacy); canonical store is npc_beliefs."""
+        merged: Dict[str, List[str]] = defaultdict(list)
+        for (_nid, claim), chain in self.npc_beliefs.items():
+            for vnid in chain:
+                if vnid not in merged[claim]:
+                    merged[claim].append(vnid)
+        return dict(merged)
+
+    def bump_state_version(self) -> int:
+        self.state_version += 1
+        return self.state_version
+
+    def checkpoint(self) -> dict:
+        return _checkpoint(self)
+
+    def rollback(self, snap: dict) -> None:
+        _rollback(self, snap)
+
+    def get_idempotent(self, key: str) -> Optional[dict]:
+        return self._idempotency_cache.get(key)
+
+    def store_idempotent(self, key: str, payload: dict) -> None:
+        if not key:
+            return
+        self._idempotency_cache[key] = payload
+        if len(self._idempotency_cache) > 200:
+            oldest = list(self._idempotency_cache.keys())[:50]
+            for k in oldest:
+                self._idempotency_cache.pop(k, None)
+
+    def add_private_memory(self, npc_id: str, entry: dict) -> None:
+        """NPC 私有记忆（不写入全局 graph，仅 holder 可见）。"""
+        mem = {
+            **entry,
+            "id": entry.get("id") or f"pm-{npc_id}-{time.time()}",
+            "npc_id": npc_id,
+            "scope": "private",
+            "timestamp": entry.get("timestamp") or datetime.now().isoformat(),
+        }
+        self.npc_private_memory[npc_id].append(mem)
+        self.npc_private_memory[npc_id] = self.npc_private_memory[npc_id][-50:]
+        self.bump_state_version()
+
+    def get_private_memory(self, npc_id: str) -> List[dict]:
+        return list(self.npc_private_memory.get(npc_id, []))
+
+    def get_known_props_for_npc(self, npc_id: str) -> Dict[str, str]:
+        props: Dict[str, str] = {}
+        for fid in self._known_claims(npc_id):
+            props[fid] = fid.replace("_", " ")
+        return props
+
+    def get_tracked_claims(self) -> List[str]:
+        sc = self.scenario or {}
+        tracked = sc.get("trackedClaims") or sc.get("conflictClaims")
+        if isinstance(tracked, list) and tracked:
+            return [c for c in tracked if any(self._has_knowledge(n, c) for n in self.npcs)]
+        return self._all_known_claim_ids()[:8]
+
+    def get_conflict_pair(self) -> Tuple[str, str]:
+        sc = self.scenario or {}
+        pair = sc.get("conflictPair") or sc.get("conflictClaims")
+        if isinstance(pair, (list, tuple)) and len(pair) >= 2:
+            return str(pair[0]), str(pair[1])
+        claims = self._all_known_claim_ids()
+        if len(claims) >= 2:
+            return claims[0], claims[1]
+        return (claims[0] if claims else "claim_a",
+                claims[1] if len(claims) > 1 else "claim_b")
+
+    # ── Scenario CRUD (Phase 2) ──
+
+    def list_scenarios(self) -> List[dict]:
+        return list(self.scenarios)
+
+    def get_scenario(self, scenario_id: str) -> Optional[dict]:
+        return next((s for s in self.scenarios if s.get("id") == scenario_id), None)
+
+    def create_scenario(self, data: dict) -> dict:
+        sid = data.get("id") or f"scenario-{int(time.time())}"
+        scen = {**data, "id": sid}
+        self.scenarios.append(scen)
+        self.bump_state_version()
+        self._add_activity(f"Scenario created: {scen.get('name', sid)}", "system")
+        return scen
+
+    def update_scenario(self, scenario_id: str, data: dict) -> dict:
+        for i, s in enumerate(self.scenarios):
+            if s.get("id") == scenario_id:
+                updated = {**s, **data, "id": scenario_id}
+                self.scenarios[i] = updated
+                if (self.scenario or {}).get("id") == scenario_id:
+                    self.scenario = updated
+                    self.scenario_name = updated.get("name", self.scenario_name)
+                self.bump_state_version()
+                return updated
+        raise KeyError(f"scenario not found: {scenario_id}")
+
+    def delete_scenario(self, scenario_id: str) -> bool:
+        before = len(self.scenarios)
+        self.scenarios = [s for s in self.scenarios if s.get("id") != scenario_id]
+        if len(self.scenarios) == before:
+            return False
+        if (self.scenario or {}).get("id") == scenario_id:
+            self.scenario = self.scenarios[0] if self.scenarios else {}
+            self.scenario_name = self.scenario.get("name", self.scenario_name)
+        self.bump_state_version()
+        return True
+
+    def activate_scenario(self, scenario_id: str) -> dict:
+        scen = self.get_scenario(scenario_id)
+        if not scen:
+            raise KeyError(f"scenario not found: {scenario_id}")
+        self.scenario = scen
+        self.scenario_name = scen.get("name", scenario_id)
+        self.current_day = int(scen.get("currentDay", self.current_day))
+        self.bump_state_version()
+        self._add_activity(f"Activated scenario: {self.scenario_name}", "system")
+        return scen
+
     def _seed_scenario_facts(self) -> None:
         for npc_id, npc in self.npcs.items():
             for b in npc.get("beliefs", []):
@@ -317,24 +509,32 @@ class GameEngineV13:
             for t in npc.get("trustNetwork", []):
                 if str(t.get("target", "")).lower() in (dst.lower(), dst):
                     t["trust"] = w
+        self.bump_state_version()
 
     def assert_fact(self, fact_id: str, evidence: str, holder: str = "world",
                     confidence: float = 0.8, valid_from: Optional[float] = None,
-                    version: Optional[int] = None) -> str:
+                    version: Optional[int] = None, *,
+                    source_npc: Optional[str] = None,
+                    direct: bool = True) -> str:
         if valid_from is None:
             valid_from = self.now
-        ver = version or (len(self.version_chains.get(fact_id, [])) + 1)
-        vnid = f"{fact_id}_v{ver}"
+        npc_key = self._npc_claim_key(holder, fact_id)
+        ver = version or (len(self.npc_beliefs.get(npc_key, [])) + 1)
+        vnid = f"{fact_id}_v{ver}@{holder}"
         isots = datetime.fromtimestamp(valid_from).isoformat()
 
         fact = Fact(
             fact_id=fact_id, subject=holder, predicate="claims", obj=evidence[:200],
             confidence=confidence, scope=FactScope.GLOBAL,
             version=ver, version_node_id=vnid, created_at=isots, is_active=True,
+            source_npc=source_npc or holder,
         )
         self.facts[vnid] = fact
-        if vnid not in self.version_chains[fact_id]:
-            self.version_chains[fact_id].append(vnid)
+        chain = self.npc_beliefs[npc_key]
+        if vnid not in chain:
+            chain.append(vnid)
+
+        self._atms_register(fact_id, evidence, holder, confidence, valid_from)
 
         ub = UnifiedBelief(
             claim_id=fact_id, evidence_id=evidence[:200], holder=holder,
@@ -347,11 +547,9 @@ class GameEngineV13:
         self.knows_edges[f"{holder}->{vnid}"] = NPCKnows(
             npc_id=holder, fact_id=fact_id,
             opinion=BeliefTuple.from_confidence(confidence),
-            version_node_id=vnid, direct=True,
+            version_node_id=vnid, direct=direct,
             last_updated=isots, is_stale=False,
         )
-
-        self._atms_register(fact_id, evidence[:200], holder, confidence, valid_from)
 
         ev_nid = self._graph_add({
             "type": "evidence", "title": evidence[:40] or fact_id,
@@ -366,13 +564,17 @@ class GameEngineV13:
         })
         self._graph_link(ev_nid, cl_nid, "supported by")
 
+        self.bump_state_version()
         return vnid
 
     def supersede_fact(self, fact_id: str, new_evidence: str, new_confidence: float,
-                       holder: str = "world") -> dict:
-        chain = self.version_chains.get(fact_id, [])
+                       holder: str = "world", *,
+                       source_npc: Optional[str] = None,
+                       direct: bool = True) -> dict:
+        npc_key = self._npc_claim_key(holder, fact_id)
+        chain = self.npc_beliefs.get(npc_key, [])
         new_v = len(chain) + 1
-        new_vnid = f"{fact_id}_v{new_v}"
+        new_vnid = f"{fact_id}_v{new_v}@{holder}"
 
         old_text, old_conf = "", 0.0
         if chain:
@@ -405,31 +607,49 @@ class GameEngineV13:
             if not old_ub.superseded_by:
                 old_ub.superseded_by = new_vnid
                 old_ub.status = BeliefStatus.SUPERSEDED
+            self._mark_knows_stale(holder, old_vnid)
 
-        vnid = self.assert_fact(fact_id, new_evidence, holder, new_confidence,
-                                valid_from=self.now, version=new_v)
+        vnid = self.assert_fact(
+            fact_id, new_evidence, holder, new_confidence,
+            valid_from=self.now, version=new_v,
+            source_npc=source_npc, direct=direct,
+        )
         if chain:
             self._graph_link(chain[-1], vnid, "superseded by")
 
-        self._add_activity(f"Fact {fact_id} → v{new_v} ({op_info['op_type']})", "belief")
+        self._add_activity(f"Fact {fact_id} → v{new_v} ({op_info['op_type']}) [{holder}]", "belief")
+        self.bump_state_version()
         return {"vnid": vnid, "version": new_v, "operation": op_info,
-                "incision_traces": incision_traces}
+                "incision_traces": incision_traces, "holder": holder}
 
     def get_belief(self, npc_id: str, fact_id: str) -> dict:
-        chain = self.version_chains.get(fact_id, [])
-        if not chain:
-            return {"claim": fact_id, "status": "unknown", "confidence": 0.0}
+        if not self._has_knowledge(npc_id, fact_id):
+            return {
+                "claim": fact_id, "holder": npc_id,
+                "status": "no_knowledge", "confidence": 0.0,
+            }
+
+        chain = self._get_npc_chain(npc_id, fact_id)
         active_vnid = None
         for vnid in reversed(chain):
+            edge = self.knows_edges.get(f"{npc_id}->{vnid}")
+            if edge and edge.is_stale:
+                continue
             f = self.facts.get(vnid)
             if f and f.is_active:
                 active_vnid = vnid
                 break
         if not active_vnid:
-            return {"claim": fact_id, "status": "no_active", "confidence": 0.0}
+            return {
+                "claim": fact_id, "holder": npc_id,
+                "status": "no_active", "confidence": 0.0,
+            }
         ub = self.beliefs.get(active_vnid)
         if not ub:
-            return {"claim": fact_id, "status": "no_belief", "confidence": 0.0}
+            return {
+                "claim": fact_id, "holder": npc_id,
+                "status": "no_belief", "confidence": 0.0,
+            }
         trust = self.get_trust(npc_id, ub.holder)
         tw = ub.temporal_weight(self.now)
         discounted = self.sl_engine.discount_opinion(ub.belief_tuple, trust)
@@ -441,24 +661,52 @@ class GameEngineV13:
             "source_holder": ub.holder, "source_trust": round(trust, 3),
             "temporal_weight": round(tw, 4),
             "version_chain": [f"v{i+1}" for i in range(len(chain))],
+            "direct": (self.knows_edges.get(f"{npc_id}->{active_vnid}") or NPCKnows(
+                npc_id=npc_id, fact_id=fact_id, opinion=BeliefTuple.from_confidence(0.5),
+            )).direct,
         }
 
     def get_all_beliefs(self, npc_id: str) -> List[dict]:
-        return [self.get_belief(npc_id, fid) for fid in self.version_chains]
+        results: List[dict] = []
+        for fid in self._known_claims(npc_id):
+            b = self.get_belief(npc_id, fid)
+            if b.get("status") != "no_knowledge":
+                results.append(b)
+        return results
 
-    def resolve_conflict(self, claim_id1: str, claim_id2: str) -> dict:
-        """Thomas vs Duran style conflict: two related claims."""
-        c1 = claim_id1 or "knight_is_trustworthy"
-        c2 = claim_id2 or "knight_is_fake"
-        chain1 = self.version_chains.get(c1, [])
-        chain2 = self.version_chains.get(c2, [])
-        if not chain1 and not chain2:
+    def _active_ub_for_claim(self, claim_id: str,
+                             prefer_npc: Optional[str] = None) -> Optional[UnifiedBelief]:
+        candidates: List[str] = []
+        if prefer_npc:
+            candidates.append(prefer_npc)
+        candidates.extend(
+            nid for (nid, claim) in self.npc_beliefs
+            if claim == claim_id and nid not in candidates
+        )
+        for nid in candidates:
+            if not self._has_knowledge(nid, claim_id):
+                continue
+            for vnid in reversed(self._get_npc_chain(nid, claim_id)):
+                ub = self.beliefs.get(vnid)
+                if ub and ub.is_active:
+                    return ub
+        return None
+
+    def resolve_conflict(self, claim_id1: str = "", claim_id2: str = "") -> dict:
+        """两相关 claim 的冲突消解（claim 来自 scenario 或引擎已知命题）。"""
+        if claim_id1 and claim_id2:
+            c1, c2 = claim_id1, claim_id2
+        else:
+            c1, c2 = self.get_conflict_pair()
+
+        ub1 = self._active_ub_for_claim(c1)
+        ub2 = self._active_ub_for_claim(c2)
+        if not ub1 and not ub2:
             return {"conflict": False, "message": "claims not found"}
-        ub1 = self.beliefs.get(chain1[-1]) if chain1 else None
-        ub2 = self.beliefs.get(chain2[-1]) if chain2 else None
         if ub1 and ub2:
             self.atms.add_nogood_claims({c1, c2})
             result = hansson_incise(ub1, ub2, self.now, self.trust_edges)
+            self.bump_state_version()
         else:
             result = {"action": "no_op", "trace": ["missing belief nodes"]}
 
@@ -466,16 +714,16 @@ class GameEngineV13:
         steps = [
             {"step": 1, "name": "Receive", "detail": f"Conflicting claims: {c1} vs {c2}"},
             {"step": 2, "name": "Trust Check",
-             "detail": f"Thomas→Duran trust={self.get_trust('thomas','duran'):.2f}"},
+             "detail": f"Active holders: {ub1.holder if ub1 else '?'} / {ub2.holder if ub2 else '?'}"},
             {"step": 3, "name": "Conflict Detection",
              "detail": f"ATMS nogood registered for {c1}/{c2}"},
             {"step": 4, "name": "Belief Revision",
              "detail": " → ".join(result.get("trace", []))},
             {"step": 5, "name": "Consensus",
-             "detail": f"Convergence={cons.get('convergence', 0):.0%}"},
+             "detail": f"Convergence={cons.get('convergence', 0):.0%} (holders={cons.get('holders', 0)})"},
         ]
         return {"conflict": True, "steps": steps, "incision_trace": result.get("trace", []),
-                "result": result.get("action"), "consensus": cons}
+                "result": result.get("action"), "consensus": cons, "claims": [c1, c2]}
 
     def player_action(self, npc_id: str, action_type: str, player_input: str,
                       dialogue_history: Optional[List[dict]] = None) -> dict:
@@ -485,11 +733,7 @@ class GameEngineV13:
         utterance = effective_utterance(action_type, player_input, npc_name)
         hist = dialogue_history or self.dialogue_history
 
-        known_props: Dict[str, str] = {}
-        for fid in ("knight_is_trustworthy", "knight_is_fake"):
-            b = self.get_belief(npc_id, fid)
-            if b:
-                known_props[fid] = b.get("claim", fid)
+        known_props = self.get_known_props_for_npc(npc_id)
 
         analysis = analyze_player_action(
             utterance, action_type, "Player", known_props=known_props)
@@ -545,6 +789,15 @@ class GameEngineV13:
         self.events_log.append({
             "time": datetime.now().isoformat(), "event": utterance[:200],
             "participants": ["Player", npc_id], "day": self.current_day,
+        })
+
+        self.add_private_memory(npc_id, {
+            "type": "player_interaction",
+            "action": action_type,
+            "utterance": utterance,
+            "proposition": prop_key,
+            "classification": classification,
+            "participants": ["Player", npc_id],
         })
 
         return {
@@ -626,15 +879,7 @@ class GameEngineV13:
 
     def to_srs_state(self) -> dict:
         self.sync_npc_beliefs_from_engine()
-        tracked = [
-            fid for fid in (
-                "knight_is_trustworthy", "knight_is_fake",
-                "village_is_safe", "dark_forces_lurk_nearby",
-            )
-            if fid in self.version_chains
-        ]
-        if not tracked:
-            tracked = list(self.version_chains.keys())[:6]
+        tracked = self.get_tracked_claims()
 
         consensus_metrics = {
             fid: self.consensus.compute_consensus(fid) for fid in tracked
@@ -646,14 +891,26 @@ class GameEngineV13:
 
         npcs_out = []
         for npc_id, info in self.npcs.items():
+            priv = self.get_private_memory(npc_id)
+            priv_summaries = [
+                m.get("utterance") or m.get("summary") or m.get("action", "")
+                for m in priv[-5:]
+            ]
             npcs_out.append({
                 **info,
                 "trustNetwork": info.get("trustNetwork", []),
-                "shortTermMemory": [e["event"][:100] for e in self.events_log[-5:]],
-                "longTermMemory": [e["event"][:100] for e in self.events_log[-20:]],
+                "shortTermMemory": priv_summaries or [
+                    e["event"][:100] for e in self.events_log[-5:]
+                    if npc_id in e.get("participants", [])
+                ],
+                "longTermMemory": [
+                    m.get("utterance", "")[:100] for m in priv[-20:]
+                ] or [e["event"][:100] for e in self.events_log[-20:]],
+                "privateMemoryCount": len(priv),
             })
 
         return {
+            "stateVersion": self.state_version,
             "npcs": npcs_out,
             "scenarios": self.scenarios,
             "currentScenario": self.scenario,
@@ -686,7 +943,8 @@ def get_engine() -> GameEngineV13:
 if __name__ == "__main__":
     eng = GameEngineV13()
     print("NPCs:", list(eng.npcs.keys()), "graph nodes:", len(eng.graph_nodes))
-    r = eng.resolve_conflict("knight_is_trustworthy", "knight_is_fake")
+    c1, c2 = eng.get_conflict_pair()
+    r = eng.resolve_conflict(c1, c2)
     print("conflict steps:", len(r.get("steps", [])))
-    pa = eng.player_action("duran", "Accuse", "The knight's armor markings prove he is a fake.")
+    pa = eng.player_action("duran", "Accuse", "The markings on the armor look forged.")
     print("player_action beliefs:", len(pa.get("beliefs", [])))

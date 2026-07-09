@@ -48,6 +48,15 @@ def _chat(messages: List[dict], *, max_tokens: int = 180, temperature: float = 0
     return (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
 
 
+def _llm_configured() -> bool:
+    _load_env()
+    return bool(
+        os.getenv("OPENAI_API_KEY")
+        or os.getenv("AZURE_OPENAI_API_KEY")
+        or os.getenv("YUNWU_API_KEY")
+    )
+
+
 def generate_npc_response(
     npc: dict,
     player_input: str,
@@ -68,12 +77,14 @@ def generate_npc_response(
         for b in beliefs[:6]
     )
     scen = scenario or {}
+    scen_name = scen.get("name", "the village")
+    scen_desc = (scen.get("description") or "")[:300]
     hint = action_hint or ""
     anal = analysis or {}
     action_line = f"Player action type: {action_type}\nAction guidance: {hint}"
 
     system = (
-        "You are a character in an interactive narrative mystery game (Greyford village, fake knight plot). "
+        f"You are a character in an interactive narrative game set in {scen_name}. "
         "Stay in character. Respond in 1-3 sentences. Match the player's action type "
         "(Talk=chat, Inspect=describe observations, Question=answer questions, "
         "Accuse=react to accusation, Give Evidence=react to proof, Continue=elaborate)."
@@ -84,7 +95,7 @@ Personality: {npc.get('personality', '')}
 Goal: {npc.get('currentGoal', '')}
 Hidden motivation: {npc.get('hiddenMotivation', '')}
 
-Scenario: {scen.get('name', 'Greyford')} — {scen.get('description', '')[:300]}
+Scenario: {scen_name} — {scen_desc}
 
 Your beliefs:
 {bel_txt or '(none)'}
@@ -102,22 +113,47 @@ Player says/does: "{player_input}"
 
 Reply as {npc.get('name')} in character. Do not break the fourth wall.
 """.strip()
+    return generate_npc_response_with_meta(
+        npc, player_input,
+        system=system, user=user,
+        action_type=action_type,
+    )["text"]
+
+
+def generate_npc_response_with_meta(
+    npc: dict,
+    player_input: str,
+    *,
+    action_type: str = "Talk",
+    system: Optional[str] = None,
+    user: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Generate NPC reply; report whether LLM actually responded."""
+    configured = _llm_configured()
+    if system is None or user is None:
+        scen_name = "the village"
+        system = (
+            f"You are {npc.get('name')} in an interactive narrative game. "
+            "Stay in character. Respond in 1-3 sentences."
+        )
+        user = f'Player says: "{player_input}"\nReply in character.'
     text = _chat([{"role": "system", "content": system}, {"role": "user", "content": user}])
     if text:
-        return text
-    return _action_fallback_reply(npc, action_type, player_input)
+        return {"text": text, "llm_ok": True, "configured": configured, "fallback": False}
+    fb = _action_fallback_reply(npc, action_type, player_input)
+    return {"text": fb, "llm_ok": False, "configured": configured, "fallback": True}
 
 
 def _action_fallback_reply(npc: dict, action_type: str, player_input: str) -> str:
     """LLM 不可用时的动作类型模板回复。"""
     name = npc.get("name", "NPC")
     templates = {
-        "Talk": f"{name} nods thoughtfully. \"I've been watching the village closely lately.\"",
-        "Inspect": f"{name} follows your gaze. \"From here you can see the knight's camp near the elder's hall.\"",
-        "Question": f"{name} considers your question. \"Ask what you will — I'll share what I know honestly.\"",
+        "Talk": f"{name} nods thoughtfully. \"I've been paying close attention to recent events.\"",
+        "Inspect": f"{name} follows your gaze. \"There's more to notice here than meets the eye.\"",
+        "Question": f"{name} considers your question. \"Ask what you will — I'll share what I know.\"",
         "Accuse": f"{name}'s expression hardens. \"That's a serious claim. I won't dismiss it lightly.\"",
         "Give Evidence": f"{name} studies what you show. \"This... changes how I see things.\"",
-        "Continue": f"{name} continues, \"There's more you should know about the knight's arrival.\"",
+        "Continue": f"{name} continues, \"There's more you should know about what happened.\"",
     }
     return templates.get(action_type, templates["Talk"])
 
@@ -132,14 +168,13 @@ def analyze_action_llm(
     props_desc = "\n".join(f"- {k}: {v}" for k, v in list(known_props.items())[:12])
     system = (
         "Game memory engine. Given player action + utterance, output JSON only: "
-        "proposition_key (snake_case), content_label, evidence_strength (0-1), "
-        "polarity (+1 support / -1 contradict / 0 neutral), is_chitchat (bool), "
-        "target_facts (array of fact ids to invalidate if contradicted). "
-        "Knight-related: knight_is_trustworthy, knight_is_fake."
+        "proposition_key (snake_case, reuse known fact ids when applicable), content_label, "
+        "evidence_strength (0-1), polarity (+1 support / -1 contradict / 0 neutral), "
+        "is_chitchat (bool), target_facts (array of fact ids to invalidate if contradicted)."
     )
     user = (
         f"Action type: {action_type}\nActor: {actor}\nUtterance: 「{text}」\n"
-        f"Known facts:\n{props_desc or '- knight_is_trustworthy\n- knight_is_fake'}"
+        f"Known facts:\n{props_desc or '(none — infer a new snake_case proposition_key)'}"
     )
     raw = _chat([{"role": "system", "content": system}, {"role": "user", "content": user}],
                 max_tokens=200, temperature=0.3)
