@@ -3,9 +3,7 @@
   "installCommand": "npm install --prefix tmp_SRS",
   "buildCommand": "npm run build --prefix tmp_SRS && mkdir -p public && cp -r tmp_SRS/dist/* public/",
   "outputDirectory": "public",
-  "framework": null,
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

@@ -1,9 +1,9 @@
-const GRAPHMEM_API =
-  import.meta.env.VITE_GRAPHMEM_API ||
-  (import.meta.env.PROD ? '' : 'http://localhost:8765')
+/** Same-origin /api — Vite dev proxy → :8765, Vercel → FastAPI serverless */
+const GRAPHMEM_API = import.meta.env.VITE_GRAPHMEM_API ?? ''
 
 async function backendFetch(path, options = {}) {
-  const res = await fetch(`${GRAPHMEM_API}${path}`, {
+  const url = `${GRAPHMEM_API}${path}`
+  const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
   })
@@ -16,6 +16,9 @@ async function backendFetch(path, options = {}) {
 }
 
 export const api = {
+  /** Ping backend health (lightweight). */
+  checkHealth: async () => backendFetch('/api/health'),
+
   /** Load full state from GraphMem backend (npcs, memory graph, scenario, day/turn). */
   loadBackendState: async () => backendFetch('/api/state'),
 

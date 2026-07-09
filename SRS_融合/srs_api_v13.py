@@ -160,7 +160,13 @@ async def health():
         "graph_nodes": len(engine.graph_nodes),
         "day": engine.current_day,
         "turn": engine.current_turn,
+        "stateVersion": engine.state_version,
     }
+
+
+@app.get("/")
+async def root():
+    return {"service": "GraphMem-ATMS SRS", "docs": "/api/health", "state": "/api/state"}
 
 
 def _check_state_version(expected: Optional[int]) -> None:

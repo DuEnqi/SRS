@@ -13,6 +13,7 @@ const navItems = [
 
 export default function Sidebar({ currentPage, onNavigate }) {
   const backendConnected = useStore((s) => s.backendConnected)
+  const apiLabel = import.meta.env.VITE_GRAPHMEM_API || '/api (same-origin)'
 
   return (
     <div className="w-64 bg-dark-surface border-r border-dark-border flex flex-col h-screen fixed left-0 top-0">
@@ -40,7 +41,7 @@ export default function Sidebar({ currentPage, onNavigate }) {
         <div className="glass-panel rounded-lg p-3">
           <p className="text-gray-400 text-xs">Connected to:</p>
           <p className={`text-sm mt-1 ${backendConnected ? 'text-cyber-green' : 'text-cyber-yellow'}`}>
-            {backendConnected ? 'GraphMem-ATMS :8765' : 'Mock (backend offline)'}
+            {backendConnected ? `GraphMem-ATMS ${apiLabel}` : 'Mock (backend offline)'}
           </p>
           <div className="flex items-center gap-2 mt-2">
             <span className={`w-2 h-2 rounded-full animate-pulse ${backendConnected ? 'bg-cyber-green' : 'bg-cyber-yellow'}`} />
