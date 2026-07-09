@@ -88,7 +88,6 @@ export const useStore = create((set, get) => ({
 
   loadData: async () => {
     try {
-      await api.checkHealth()
       const state = await api.loadBackendState()
       applyBackendState(set, state)
     } catch (e) {

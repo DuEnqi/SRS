@@ -166,7 +166,7 @@ async def health():
 
 @app.get("/")
 async def root():
-    return {"service": "GraphMem-ATMS SRS", "docs": "/api/health", "state": "/api/state"}
+    return {"service": "GraphMem-ATMS SRS", "health": "/api/health", "state": "/api/state"}
 
 
 def _check_state_version(expected: Optional[int]) -> None:

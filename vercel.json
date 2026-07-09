@@ -2,7 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install --prefix tmp_SRS",
   "buildCommand": "npm run build --prefix tmp_SRS && mkdir -p public && cp -r tmp_SRS/dist/* public/",
-  "outputDirectory": "public",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
