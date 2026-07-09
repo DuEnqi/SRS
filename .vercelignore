@@ -1,12 +1,17 @@
 # Large / local-only — do not upload to Vercel
-tmp_SRS/node_modules/
-tmp_SRS/dist/assets/
+**/node_modules/**
+node_modules
+tmp_SRS/node_modules
+.git
 __pycache__/
+**/__pycache__/**
 .venv/
 venv/
 .env
 .env.local
 runs/
+data/
 *.zip
-.git/
 terminals/
+MultiNPC-clone/
+STALE_GraphMem_ATMS/
