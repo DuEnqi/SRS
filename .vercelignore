@@ -1,0 +1,12 @@
+# Large / local-only — do not upload to Vercel
+tmp_SRS/node_modules/
+tmp_SRS/dist/assets/
+__pycache__/
+.venv/
+venv/
+.env
+.env.local
+runs/
+*.zip
+.git/
+terminals/

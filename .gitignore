@@ -6,6 +6,7 @@
 !/requirements.txt
 !/start.ps1
 !/vercel.json
+!/.vercelignore
 !/pyproject.toml
 !/package.json
 !/api/
@@ -51,3 +52,6 @@ venv/
 Thumbs.db
 .vscode/
 .cursor/
+
+.vercel
+.env*
