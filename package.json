@@ -1,0 +1,8 @@
+{
+  "name": "srs-monorepo",
+  "private": true,
+  "scripts": {
+    "build": "npm run build --prefix tmp_SRS",
+    "dev": "npm run dev --prefix tmp_SRS"
+  }
+}

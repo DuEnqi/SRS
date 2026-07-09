@@ -2,7 +2,26 @@
 
 完整可运行的 Multi-NPC 叙事平台：React 前端 + FastAPI 后端 + 形式化信念图。
 
-## 快速启动（推荐）
+## Vercel 部署
+
+仓库已包含 `vercel.json` + `pyproject.toml` + `api/index.py`（FastAPI 入口 shim）。
+
+1. 在 [Vercel](https://vercel.com) 导入 `DuEnqi/SRS`，**Root Directory 留空**（仓库根目录）
+2. Framework Preset 选 **Other**（或自动识别）
+3. 环境变量（Settings → Environment Variables）：
+   - `OPENAI_API_KEY` / `AZURE_OPENAI_API_KEY`（可选，LLM 对话）
+   - `LLM_PROVIDER=azure` 等（见 `.env.example`）
+4. Deploy
+
+构建流程：编译 `tmp_SRS` → 复制到 `public/` → FastAPI 处理 `/api/*` → 静态 SPA 处理其余路由。
+
+本地预览生产构建：
+
+```powershell
+cd tmp_SRS
+npm run build
+npm run preview
+```
 
 **终端 1 — 后端**
 

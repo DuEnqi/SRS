@@ -5,6 +5,11 @@
 !/.env.example
 !/requirements.txt
 !/start.ps1
+!/vercel.json
+!/pyproject.toml
+!/package.json
+!/api/
+!/api/**
 
 # ── SRS 后端 ──
 !/SRS_融合/
@@ -26,6 +31,9 @@ tmp_SRS/.env.local
 # ── 后端依赖：形式化层 + LLM 配置 ──
 !/unified_stale.py
 !/llm_env.py
+
+# ── Vercel build output ──
+public/
 
 # ── 密钥（绝不提交）──
 .env
