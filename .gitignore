@@ -1,0 +1,45 @@
+# ── 默认：忽略仓库根目录下所有内容 ──
+/*
+!/.gitignore
+!/README.md
+!/.env.example
+!/requirements.txt
+!/start.ps1
+
+# ── SRS 后端 ──
+!/SRS_融合/
+!/SRS_融合/**
+
+# ── SRS 前端（ForCadia/SRS fork）──
+!/tmp_SRS/
+!/tmp_SRS/**
+tmp_SRS/node_modules/
+tmp_SRS/dist/assets/
+tmp_SRS/.env
+tmp_SRS/.env.local
+
+# ── 后端依赖：GraphMem 核心类型 ──
+!/补充内容/
+!/补充内容/STALE_GraphMem_ATMS/
+!/补充内容/STALE_GraphMem_ATMS/**
+
+# ── 后端依赖：形式化层 + LLM 配置 ──
+!/unified_stale.py
+!/llm_env.py
+
+# ── 密钥（绝不提交）──
+.env
+.env.local
+*.local
+
+# ── Python / 构建缓存 ──
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── OS / IDE ──
+.DS_Store
+Thumbs.db
+.vscode/
+.cursor/

@@ -1,0 +1,178 @@
+{
+  "agents": [
+    {
+      "id": "thomas",
+      "name": "Thomas",
+      "role": "Guard",
+      "age": 35,
+      "personality": "Loyal, cautious, duty-bound",
+      "traits": ["Honest", "Conservative", "Justice-driven"],
+      "currentGoal": "Protect village",
+      "hiddenMotivation": "Maintain order",
+      "shortTermMemory": [
+        "Knight arrived yesterday",
+        "Duran reported suspicious activity",
+        "Village elder requested patrol increase"
+      ],
+      "longTermMemory": [
+        "Served in the Imperial Guard for 10 years",
+        "Lost his brother to Chaos cultists",
+        "Swore oath to protect Greyford"
+      ],
+      "beliefs": [
+        { "id": "b1", "statement": "Knight is trustworthy", "confidence": 0.72, "evidence": "Sword of office", "source": "Duran", "timestamp": "2024-01-15T10:30:00Z" },
+        { "id": "b2", "statement": "Village is safe", "confidence": 0.85, "evidence": "No attacks in 3 months", "source": "Personal observation", "timestamp": "2024-01-14T08:00:00Z" },
+        { "id": "b3", "statement": "Dark forces lurk nearby", "confidence": 0.45, "evidence": "Strange lights at night", "source": "Villager report", "timestamp": "2024-01-13T22:15:00Z" }
+      ],
+      "trustNetwork": [
+        { "target": "Player", "trust": 0.8, "reason": "Proven loyalty" },
+        { "target": "Duran", "trust": 0.4, "reason": "Unpredictable behavior" },
+        { "target": "Mila", "trust": 0.7, "reason": "Known for honesty" },
+        { "target": "Innkeeper", "trust": 0.5, "reason": "Neutral party" }
+      ]
+    },
+    {
+      "id": "duran",
+      "name": "Duran",
+      "role": "Blacksmith",
+      "age": 42,
+      "personality": "Suspicious, skilled, protective",
+      "traits": ["Crafty", "Skeptical", "Protective"],
+      "currentGoal": "Uncover the knight's secret",
+      "hiddenMotivation": "Protect his daughter",
+      "shortTermMemory": [
+        "Knight's armor has strange markings",
+        "Heard whispers about fake knights",
+        "Thomas seems too trusting"
+      ],
+      "longTermMemory": [
+        "Father was a knight who died dishonorably",
+        "Knows how to forge real knight armor",
+        "Witnessed a fraud in the past"
+      ],
+      "beliefs": [
+        { "id": "b4", "statement": "Knight is fake", "confidence": 0.88, "evidence": "Armor markings don't match", "source": "Personal inspection", "timestamp": "2024-01-15T09:20:00Z" },
+        { "id": "b5", "statement": "Thomas is being deceived", "confidence": 0.75, "evidence": "Blind trust in strangers", "source": "Observation", "timestamp": "2024-01-15T11:00:00Z" }
+      ],
+      "trustNetwork": [
+        { "target": "Player", "trust": 0.6, "reason": "Helped before" },
+        { "target": "Thomas", "trust": 0.3, "reason": "Too naive" },
+        { "target": "Mila", "trust": 0.85, "reason": "Childhood friend" }
+      ]
+    },
+    {
+      "id": "mila",
+      "name": "Mila",
+      "role": "Healer",
+      "age": 28,
+      "personality": "Compassionate, observant, wise",
+      "traits": ["Kind", "Perceptive", "Pacifist"],
+      "currentGoal": "Keep villagers healthy",
+      "hiddenMotivation": "Find a cure for the plague",
+      "shortTermMemory": [
+        "Knight visited the infirmary",
+        "Duran seems agitated",
+        "New sickness spreading"
+      ],
+      "longTermMemory": [
+        "Studied medicine in the capital",
+        "Lost family to plague",
+        "Swore to heal others"
+      ],
+      "beliefs": [
+        { "id": "b6", "statement": "Knight has good intentions", "confidence": 0.6, "evidence": "Helped sick child", "source": "Personal experience", "timestamp": "2024-01-15T14:00:00Z" },
+        { "id": "b7", "statement": "Conflict between Duran and Thomas", "confidence": 0.9, "evidence": "Arguments overheard", "source": "Observation", "timestamp": "2024-01-15T12:30:00Z" }
+      ],
+      "trustNetwork": [
+        { "target": "Player", "trust": 0.85, "reason": "Caring attitude" },
+        { "target": "Duran", "trust": 0.8, "reason": "Childhood bond" },
+        { "target": "Thomas", "trust": 0.65, "reason": "Protects village" }
+      ]
+    },
+    {
+      "id": "innkeeper",
+      "name": "Gareth",
+      "role": "Innkeeper",
+      "age": 55,
+      "personality": "Neutral, talkative, observant",
+      "traits": ["Chatty", "Neutral", "Information broker"],
+      "currentGoal": "Run successful inn",
+      "hiddenMotivation": "Collect information",
+      "shortTermMemory": [
+        "Knight stayed at the inn",
+        "Stranger asking about knight",
+        "Player seems interested in investigation"
+      ],
+      "longTermMemory": [
+        "Been in Greyford for 30 years",
+        "Seen many travelers come and go",
+        "Knows everyone's secrets"
+      ],
+      "beliefs": [
+        { "id": "b8", "statement": "Something is wrong with the knight", "confidence": 0.7, "evidence": "Secretive behavior", "source": "Observation", "timestamp": "2024-01-15T16:00:00Z" },
+        { "id": "b9", "statement": "Player can be trusted", "confidence": 0.75, "evidence": "Honest dealings", "source": "Experience", "timestamp": "2024-01-14T20:00:00Z" }
+      ],
+      "trustNetwork": [
+        { "target": "Player", "trust": 0.7, "reason": "Good customer" },
+        { "target": "Mila", "trust": 0.6, "reason": "Helps patrons" },
+        { "target": "Thomas", "trust": 0.55, "reason": "Regular" },
+        { "target": "Duran", "trust": 0.5, "reason": "Occasional customer" }
+      ]
+    },
+    {
+      "id": "guard1",
+      "name": "Sergeant",
+      "role": "Guard Sergeant",
+      "age": 40,
+      "personality": "Disciplined, by-the-book, loyal",
+      "traits": ["Disciplined", "Obedient", "Tactical"],
+      "currentGoal": "Maintain security",
+      "hiddenMotivation": "Prove worth for promotion",
+      "shortTermMemory": [
+        "New patrol routes assigned",
+        "Knight wants audience with elder",
+        "Reports of bandits nearby"
+      ],
+      "longTermMemory": [
+        "Served under Thomas for 5 years",
+        "Combat veteran",
+        "Respects authority"
+      ],
+      "beliefs": [
+        { "id": "b10", "statement": "Knight is legitimate", "confidence": 0.78, "evidence": "Official-looking documents", "source": "Thomas", "timestamp": "2024-01-15T10:00:00Z" }
+      ],
+      "trustNetwork": [
+        { "target": "Thomas", "trust": 0.9, "reason": "Commanding officer" },
+        { "target": "Player", "trust": 0.6, "reason": "Allied with guards" }
+      ]
+    },
+    {
+      "id": "blacksmith_apprentice",
+      "name": "Tobias",
+      "role": "Apprentice",
+      "age": 16,
+      "personality": "Eager, curious, loyal",
+      "traits": ["Curious", "Hardworking", "Naive"],
+      "currentGoal": "Learn blacksmithing",
+      "hiddenMotivation": "Impress Duran",
+      "shortTermMemory": [
+        "Duran is hiding something",
+        "Knight's sword needs repair",
+        "Player asked about the knight"
+      ],
+      "longTermMemory": [
+        "Orphan taken in by Duran",
+        "Aspires to be master smith",
+        "Looks up to Duran"
+      ],
+      "beliefs": [
+        { "id": "b11", "statement": "Duran knows something important", "confidence": 0.8, "evidence": "Secretive behavior", "source": "Observation", "timestamp": "2024-01-15T08:30:00Z" },
+        { "id": "b12", "statement": "Knight is a hero", "confidence": 0.65, "evidence": "Stories told by villagers", "source": "Hearsay", "timestamp": "2024-01-14T18:00:00Z" }
+      ],
+      "trustNetwork": [
+        { "target": "Duran", "trust": 0.95, "reason": "Father figure" },
+        { "target": "Player", "trust": 0.7, "reason": "Friendly" }
+      ]
+    }
+  ]
+}

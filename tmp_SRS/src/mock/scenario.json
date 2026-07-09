@@ -1,0 +1,118 @@
+{
+  "scenarios": [
+    {
+      "id": "s1",
+      "name": "Fake Knight Incident",
+      "location": "Greyford",
+      "theme": "Identity Conflict",
+      "description": "A mysterious knight arrives in the village of Greyford, claiming to be on a mission from the capital. However, the local blacksmith suspects the knight is a fraud, creating tension and conflict within the community.",
+      "currentDay": 3,
+      "totalDays": 7,
+      "participants": ["Thomas", "Duran", "Mila", "Gareth", "Sergeant", "Tobias"],
+      "timeline": [
+        {
+          "id": "t1",
+          "day": 1,
+          "title": "Knight Arrives",
+          "description": "A knight claiming royal authority arrives at Greyford, seeking an audience with the village elder.",
+          "participants": ["Thomas", "Knight"],
+          "informationReleased": ["Knight claims to be from the capital", "Has official documents"],
+          "memoryChange": "Thomas gains memory of knight's arrival",
+          "trustEffect": {"Thomas": 0.2}
+        },
+        {
+          "id": "t2",
+          "day": 2,
+          "title": "Evidence Discovered",
+          "description": "Duran inspects the knight's armor and discovers inconsistencies in the heraldic markings.",
+          "participants": ["Duran"],
+          "informationReleased": ["Armor markings don't match", "Possible fraud"],
+          "memoryChange": "Duran gains memory of armor inspection",
+          "trustEffect": {"Duran": -0.3}
+        },
+        {
+          "id": "t3",
+          "day": 3,
+          "title": "Truth Revealed",
+          "description": "The player discovers the knight's true identity. The knight is actually a deserter fleeing justice.",
+          "participants": ["Player", "Knight"],
+          "informationReleased": ["Knight is a deserter", "Running from authorities"],
+          "memoryChange": "All NPCs update beliefs about the knight",
+          "trustEffect": {"Thomas": -0.4, "Duran": 0.2}
+        },
+        {
+          "id": "t4",
+          "day": 4,
+          "title": "Conflict Escalates",
+          "description": "Thomas and Duran argue publicly about the knight's legitimacy.",
+          "participants": ["Thomas", "Duran", "Mila"],
+          "informationReleased": ["Public disagreement", "Division in village"],
+          "memoryChange": "Mila witnesses the conflict",
+          "trustEffect": {"Thomas": -0.1, "Duran": -0.1}
+        },
+        {
+          "id": "t5",
+          "day": 5,
+          "title": "Resolution Attempt",
+          "description": "Mila attempts to mediate between Thomas and Duran.",
+          "participants": ["Mila", "Thomas", "Duran"],
+          "informationReleased": ["Attempt at reconciliation"],
+          "memoryChange": "Mila's mediation attempt recorded",
+          "trustEffect": {"Mila": 0.1}
+        },
+        {
+          "id": "t6",
+          "day": 6,
+          "title": "Final Confrontation",
+          "description": "The knight's deception is fully exposed. The village must decide what to do.",
+          "participants": ["All"],
+          "informationReleased": ["Full truth revealed", "Knight's motives known"],
+          "memoryChange": "All NPCs update final beliefs",
+          "trustEffect": {"Thomas": -0.2, "Duran": 0.3}
+        },
+        {
+          "id": "t7",
+          "day": 7,
+          "title": "New Order",
+          "description": "The village establishes new security protocols based on the lessons learned.",
+          "participants": ["All"],
+          "informationReleased": ["New security measures"],
+          "memoryChange": "Long-term memory updated",
+          "trustEffect": {"Thomas": 0.1, "Duran": 0.1}
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "name": "The Missing Heirloom",
+      "location": "Hollowbrook",
+      "theme": "Trust and Betrayal",
+      "description": "A valuable family heirloom goes missing from the local lord's estate. Suspicions run high as the community turns against each other.",
+      "currentDay": 2,
+      "totalDays": 5,
+      "participants": ["Lord Harrington", "Steward", "Gardener", "Cook"],
+      "timeline": [
+        {
+          "id": "t8",
+          "day": 1,
+          "title": "Discovery of Theft",
+          "description": "The heirloom is discovered missing from its display case.",
+          "participants": ["Lord Harrington", "Steward"],
+          "informationReleased": ["Heirloom stolen", "Security breach"],
+          "memoryChange": "Initial shock recorded",
+          "trustEffect": {"Steward": -0.2}
+        },
+        {
+          "id": "t9",
+          "day": 2,
+          "title": "Investigation Begins",
+          "description": "The player begins investigating the theft, interviewing staff members.",
+          "participants": ["Player", "Gardener", "Cook"],
+          "informationReleased": ["Investigation underway"],
+          "memoryChange": "Player's investigation recorded",
+          "trustEffect": {}
+        }
+      ]
+    }
+  ]
+}

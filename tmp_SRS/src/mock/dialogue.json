@@ -1,0 +1,167 @@
+{
+  "conversations": [
+    {
+      "id": "c1",
+      "npc": "Thomas",
+      "scenario": "Fake Knight Incident",
+      "turns": [
+        {
+          "id": "turn1",
+          "speaker": "Player",
+          "text": "Thomas, what do you know about this knight who arrived yesterday?",
+          "timestamp": "2024-01-15T10:00:00Z",
+          "memoryUpdate": null
+        },
+        {
+          "id": "turn2",
+          "speaker": "Thomas",
+          "text": "He claims to be from the capital, bearing royal documents. I've verified his papers - they look authentic. He says he's here to investigate reports of bandit activity in the region.",
+          "timestamp": "2024-01-15T10:02:00Z",
+          "memoryUpdate": "Thomas shares information about knight's claims",
+          "reasoning": "Thomas believes the knight is legitimate based on official documents and his duty to trust authority figures. His personality traits of loyalty and duty-driven behavior influence his response.",
+          "prompt": "You are Thomas, a loyal guard captain...",
+          "context": {
+            "memory": ["Knight arrived with documents", "Served in Imperial Guard"],
+            "belief": {"Knight is trustworthy": 0.72},
+            "personality": "Loyal, cautious, duty-bound"
+          }
+        },
+        {
+          "id": "turn3",
+          "speaker": "Player",
+          "text": "Duran seems suspicious of him. Have you talked to Duran about this?",
+          "timestamp": "2024-01-15T10:05:00Z",
+          "memoryUpdate": null
+        },
+        {
+          "id": "turn4",
+          "speaker": "Thomas",
+          "text": "Yes, Duran mentioned something about the armor. But Duran has always been skeptical of outsiders. The knight's documents are in order, and he's shown no cause for concern. I think Duran is just being paranoid.",
+          "timestamp": "2024-01-15T10:08:00Z",
+          "memoryUpdate": "Thomas records disagreement with Duran",
+          "reasoning": "Thomas dismisses Duran's concerns because Duran has a history of skepticism. Thomas trusts official documents over personal suspicion, reflecting his conservative nature.",
+          "prompt": "You are Thomas...",
+          "context": {
+            "memory": ["Duran's skepticism", "Knight's documents verified"],
+            "belief": {"Knight is trustworthy": 0.72},
+            "personality": "Conservative, duty-bound"
+          }
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "npc": "Duran",
+      "scenario": "Fake Knight Incident",
+      "turns": [
+        {
+          "id": "turn1",
+          "speaker": "Player",
+          "text": "Duran, you seem concerned about the knight. What have you discovered?",
+          "timestamp": "2024-01-15T09:30:00Z",
+          "memoryUpdate": null
+        },
+        {
+          "id": "turn2",
+          "speaker": "Duran",
+          "text": "I examined his armor this morning. The heraldic markings are wrong - the royal crest has three fleurs-de-lis, but his only has two. And the steel quality? It's not royal-grade. That armor was made in a village forge, not the capital.",
+          "timestamp": "2024-01-15T09:33:00Z",
+          "memoryUpdate": "Duran shares armor inspection findings",
+          "reasoning": "Duran uses his expert knowledge of blacksmithing to identify inconsistencies in the armor. His skeptical personality and personal experience with fraud drive his suspicion.",
+          "prompt": "You are Duran, a skilled blacksmith...",
+          "context": {
+            "memory": ["Armor inspection", "Father was a knight"],
+            "belief": {"Knight is fake": 0.88},
+            "personality": "Suspicious, skilled"
+          }
+        },
+        {
+          "id": "turn3",
+          "speaker": "Player",
+          "text": "Thomas thinks the documents are real. What do you say about that?",
+          "timestamp": "2024-01-15T09:35:00Z",
+          "memoryUpdate": null
+        },
+        {
+          "id": "turn4",
+          "speaker": "Duran",
+          "text": "Documents can be forged. I've seen it before. Thomas is too trusting of authority - he served in the Guard too long. He sees a uniform and stops thinking. But I tell you, that 'knight' is hiding something. I'll prove it.",
+          "timestamp": "2024-01-15T09:38:00Z",
+          "memoryUpdate": "Duran records distrust of Thomas's judgment",
+          "reasoning": "Duran dismisses Thomas's trust in documents, citing his own experience with fraud. He attributes Thomas's trust to military conditioning, reflecting his crafty and skeptical nature.",
+          "prompt": "You are Duran...",
+          "context": {
+            "memory": ["Past fraud experiences", "Thomas's military background"],
+            "belief": {"Thomas is being deceived": 0.75},
+            "personality": "Crafty, skeptical"
+          }
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "npc": "Mila",
+      "scenario": "Fake Knight Incident",
+      "turns": [
+        {
+          "id": "turn1",
+          "speaker": "Player",
+          "text": "Mila, what do you think about the knight?",
+          "timestamp": "2024-01-15T14:30:00Z",
+          "memoryUpdate": null
+        },
+        {
+          "id": "turn2",
+          "speaker": "Mila",
+          "text": "He visited the infirmary earlier today. He helped little Elinor when she was struggling to breathe - stayed with her until she was stable. He seemed genuinely concerned. But...",
+          "timestamp": "2024-01-15T14:32:00Z",
+          "memoryUpdate": "Mila records knight's kindness",
+          "reasoning": "Mila focuses on the knight's compassionate actions, reflecting her kind and perceptive personality. She begins to express doubt but is hesitant to judge.",
+          "prompt": "You are Mila, a compassionate healer...",
+          "context": {
+            "memory": ["Knight helped sick child", "Duran's concerns"],
+            "belief": {"Knight has good intentions": 0.6},
+            "personality": "Compassionate, perceptive"
+          }
+        },
+        {
+          "id": "turn3",
+          "speaker": "Player",
+          "text": "But what?",
+          "timestamp": "2024-01-15T14:33:00Z",
+          "memoryUpdate": null
+        },
+        {
+          "id": "turn4",
+          "speaker": "Mila",
+          "text": "But Duran knows armor better than anyone. If he says something's wrong... I don't know. There's tension between Thomas and Duran over this. I just hope it doesn't tear the village apart.",
+          "timestamp": "2024-01-15T14:35:00Z",
+          "memoryUpdate": "Mila expresses concern about conflict",
+          "reasoning": "Mila acknowledges Duran's expertise while expressing concern about the conflict. Her pacifist nature drives her desire to maintain harmony.",
+          "prompt": "You are Mila...",
+          "context": {
+            "memory": ["Conflict between Thomas and Duran"],
+            "belief": {"Conflict exists": 0.9},
+            "personality": "Pacifist, kind"
+          }
+        }
+      ]
+    }
+  ],
+  "replays": [
+    {
+      "id": "r1",
+      "name": "Thomas Interview - Day 3",
+      "date": "2024-01-15",
+      "conversationId": "c1",
+      "duration": "120 seconds"
+    },
+    {
+      "id": "r2",
+      "name": "Duran Armor Analysis",
+      "date": "2024-01-15",
+      "conversationId": "c2",
+      "duration": "90 seconds"
+    }
+  ]
+}

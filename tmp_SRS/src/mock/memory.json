@@ -1,0 +1,172 @@
+{
+  "nodes": [
+    {
+      "id": "m1",
+      "type": "event",
+      "title": "Knight Arrives",
+      "description": "A knight claiming to be from the capital arrives at Greyford",
+      "timestamp": "2024-01-14T09:00:00Z",
+      "source": "Thomas",
+      "confidence": 1.0,
+      "relatedNPCs": ["Thomas", "Duran", "Mila", "Innkeeper"],
+      "claims": ["c1"]
+    },
+    {
+      "id": "m2",
+      "type": "event",
+      "title": "Armor Inspection",
+      "description": "Duran inspects the knight's armor and finds inconsistencies",
+      "timestamp": "2024-01-15T09:20:00Z",
+      "source": "Duran",
+      "confidence": 0.95,
+      "relatedNPCs": ["Duran"],
+      "claims": ["c2"]
+    },
+    {
+      "id": "m3",
+      "type": "event",
+      "title": "Knight Helps Child",
+      "description": "Knight assists a sick child at the infirmary",
+      "timestamp": "2024-01-15T14:00:00Z",
+      "source": "Mila",
+      "confidence": 1.0,
+      "relatedNPCs": ["Mila"],
+      "claims": ["c3"]
+    },
+    {
+      "id": "m4",
+      "type": "claim",
+      "title": "Knight is Royal",
+      "description": "The knight claims to be from the royal court",
+      "timestamp": "2024-01-14T09:30:00Z",
+      "source": "Knight",
+      "confidence": 0.5,
+      "relatedNPCs": ["Thomas"],
+      "evidence": ["e1"],
+      "justification": "j1"
+    },
+    {
+      "id": "m5",
+      "type": "claim",
+      "title": "Armor is Fake",
+      "description": "Duran claims the knight's armor is not authentic",
+      "timestamp": "2024-01-15T09:25:00Z",
+      "source": "Duran",
+      "confidence": 0.88,
+      "relatedNPCs": ["Duran"],
+      "evidence": ["e2"],
+      "justification": "j2"
+    },
+    {
+      "id": "m6",
+      "type": "claim",
+      "title": "Knight has Good Intentions",
+      "description": "Mila believes the knight has good intentions",
+      "timestamp": "2024-01-15T14:30:00Z",
+      "source": "Mila",
+      "confidence": 0.6,
+      "relatedNPCs": ["Mila"],
+      "evidence": ["e3"],
+      "justification": "j3"
+    },
+    {
+      "id": "m7",
+      "type": "evidence",
+      "title": "Royal Documents",
+      "description": "Knight presents documents claiming royal authorization",
+      "timestamp": "2024-01-14T09:30:00Z",
+      "source": "Knight",
+      "confidence": 0.6
+    },
+    {
+      "id": "m8",
+      "type": "evidence",
+      "title": "Armor Markings",
+      "description": "Duran found mismatched heraldic markings on the armor",
+      "timestamp": "2024-01-15T09:22:00Z",
+      "source": "Duran",
+      "confidence": 0.95
+    },
+    {
+      "id": "m9",
+      "type": "evidence",
+      "title": "Kind Actions",
+      "description": "Knight showed kindness by helping a sick child",
+      "timestamp": "2024-01-15T14:00:00Z",
+      "source": "Mila",
+      "confidence": 1.0
+    },
+    {
+      "id": "m10",
+      "type": "belief",
+      "title": "Knight is Trustworthy",
+      "description": "Thomas believes the knight can be trusted",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "source": "Thomas",
+      "confidence": 0.72,
+      "relatedNPCs": ["Thomas"]
+    },
+    {
+      "id": "m11",
+      "type": "belief",
+      "title": "Knight is Fake",
+      "description": "Duran believes the knight is a fraud",
+      "timestamp": "2024-01-15T09:25:00Z",
+      "source": "Duran",
+      "confidence": 0.88,
+      "relatedNPCs": ["Duran"]
+    },
+    {
+      "id": "m12",
+      "type": "belief",
+      "title": "Conflict Exists",
+      "description": "Mila recognizes the conflict between Thomas and Duran",
+      "timestamp": "2024-01-15T12:30:00Z",
+      "source": "Mila",
+      "confidence": 0.9,
+      "relatedNPCs": ["Mila"]
+    },
+    {
+      "id": "m13",
+      "type": "justification",
+      "title": "Authority Trust",
+      "description": "Thomas trusts authority figures and official documents",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "source": "Thomas",
+      "confidence": 0.7
+    },
+    {
+      "id": "m14",
+      "type": "justification",
+      "title": "Expert Knowledge",
+      "description": "Duran is an expert in armor and can spot fakes",
+      "timestamp": "2024-01-15T09:25:00Z",
+      "source": "Duran",
+      "confidence": 0.95
+    },
+    {
+      "id": "m15",
+      "type": "justification",
+      "title": "Compassionate Judgment",
+      "description": "Mila judges based on actions and compassion",
+      "timestamp": "2024-01-15T14:30:00Z",
+      "source": "Mila",
+      "confidence": 0.6
+    }
+  ],
+  "edges": [
+    { "source": "m1", "target": "m4", "label": "generates" },
+    { "source": "m1", "target": "m10", "label": "influences" },
+    { "source": "m2", "target": "m5", "label": "generates" },
+    { "source": "m2", "target": "m11", "label": "influences" },
+    { "source": "m3", "target": "m6", "label": "generates" },
+    { "source": "m4", "target": "m7", "label": "supported by" },
+    { "source": "m4", "target": "m13", "label": "justified by" },
+    { "source": "m5", "target": "m8", "label": "supported by" },
+    { "source": "m5", "target": "m14", "label": "justified by" },
+    { "source": "m6", "target": "m9", "label": "supported by" },
+    { "source": "m6", "target": "m15", "label": "justified by" },
+    { "source": "m10", "target": "m12", "label": "contributes to" },
+    { "source": "m11", "target": "m12", "label": "contributes to" }
+  ]
+}
